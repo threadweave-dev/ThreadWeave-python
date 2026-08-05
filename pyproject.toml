@@ -38,7 +38,13 @@ classifiers = [
 ]
 
 dependencies = [
+    "threadweave-protocols-grpc-python",
 ]
+
+[[tool.uv.index]]
+name = "buf"
+url = "https://buf.build/gen/python"
+
 
 [project.optional-dependencies]
 dev = [

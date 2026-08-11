@@ -5,8 +5,8 @@ from typing import Any, ParamSpec, TypeVar, overload
 
 from threadweave._internal.app import BaseThreadWeave
 from threadweave._internal.task import TaskOptions
-from threadweave.protocol.client import ProtocolClient
-from threadweave.task import Task
+from threadweave.asyncio.task import Task
+from threadweave.protocol.asyncio.client import AsyncProtocolClient
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -14,25 +14,25 @@ R = TypeVar("R")
 
 class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
     """
-    Synchronous developer-facing entry point for a ThreadWeave application.
+    Asynchronous developer-facing entry point for a ThreadWeave application.
 
-    `ThreadWeave` provides the synchronous Python API for task registration
-    and communication with the ThreadWeave Core.
+    `ThreadWeave` provides the asyncio-compatible Python API for task
+    registration and communication with the ThreadWeave Core.
 
     Application metadata, task registry management, validation, and other
-    behavior shared with the asyncio implementation are inherited from
+    behavior shared with the synchronous implementation are inherited from
     `BaseThreadWeave`.
 
-    This class is responsible only for behavior specific to the synchronous
+    This class is responsible only for behavior specific to the asynchronous
     API, including:
 
-    - creation of synchronous `Task` objects;
-    - access to the synchronous protocol client;
-    - synchronous connection lifecycle management.
+    - creation of asynchronous `Task` objects;
+    - access to the asynchronous protocol client;
+    - asynchronous connection lifecycle management.
 
-    Applications using asyncio should instead import::
+    Applications using the synchronous API should instead import::
 
-        from threadweave.asyncio import ThreadWeave
+        from threadweave import ThreadWeave
     """
 
     def __init__(
@@ -44,7 +44,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         default_queue: str | None = None,
         default_resources: Mapping[str, Any] | None = None,
         default_capabilities: tuple[str, ...] = (),
-        client: ProtocolClient | None = None,
+        client: AsyncProtocolClient | None = None,
     ) -> None:
         super().__init__(
             name,
@@ -54,16 +54,16 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
             default_capabilities=default_capabilities,
         )
 
-        self._client = client or ProtocolClient(
+        self._client = client or AsyncProtocolClient(
             endpoint=endpoint,
             namespace=self._namespace,
             application=self._name,
         )
 
     @property
-    def client(self) -> ProtocolClient:
+    def client(self) -> AsyncProtocolClient:
         """
-        Return the synchronous protocol client used to communicate
+        Return the asynchronous protocol client used to communicate
         with the ThreadWeave Core.
         """
         return self._client
@@ -73,8 +73,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         self,
         function: Callable[P, R],
         /,
-    ) -> Task[P, R]:
-        ...
+    ) -> Task[P, R]: ...
 
     @overload
     def task(
@@ -88,8 +87,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         capabilities: tuple[str, ...] | list[str] | None = None,
         retries: int = 0,
         timeout: float | None = None,
-    ) -> Callable[[Callable[P, R]], Task[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
     def task(
         self,
@@ -104,7 +102,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         timeout: float | None = None,
     ) -> Task[P, R] | Callable[[Callable[P, R]], Task[P, R]]:
         """
-        Register a synchronous Python function as a ThreadWeave Task.
+        Register a Python function as an asynchronous ThreadWeave Task.
 
         The decorator may be used with or without arguments.
 
@@ -113,7 +111,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         Without options::
 
             @app.task
-            def resize_image(path: str) -> str:
+            async def resize_image(path: str) -> str:
                 ...
 
         With options::
@@ -124,7 +122,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
                 retries=3,
                 timeout=300,
             )
-            def resize_image(path: str) -> str:
+            async def resize_image(path: str) -> str:
                 ...
         """
 
@@ -144,35 +142,34 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
 
         if not callable(function):
             raise TypeError(
-                "ThreadWeave.task expects a callable or must be used "
-                "as a decorator."
+                "ThreadWeave.task expects a callable or must be used " "as a decorator."
             )
 
         return decorator(function)
 
-    def connect(self) -> None:
+    async def connect(self) -> None:
         """
-        Open the synchronous connection to the ThreadWeave Core.
+        Open the asynchronous connection to the ThreadWeave Core.
         """
-        self._client.connect()
+        await self._client.connect()
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """
-        Close the synchronous connection to the ThreadWeave Core.
+        Close the asynchronous connection to the ThreadWeave Core.
         """
-        self._client.close()
+        await self._client.close()
 
-    def __enter__(self) -> ThreadWeave:
-        self.connect()
+    async def __aenter__(self) -> ThreadWeave:
+        await self.connect()
         return self
 
-    def __exit__(
+    async def __aexit__(
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
         traceback: Any,
     ) -> None:
-        self.close()
+        await self.close()
 
     def _register_task(
         self,
@@ -186,7 +183,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         timeout: float | None,
     ) -> Task[P, R]:
         """
-        Create and register a synchronous ThreadWeave Task.
+        Create and register an asynchronous ThreadWeave Task.
         """
         self._validate_function(function)
         self._validate_execution_options(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import grpc  # type: ignore[import-untyped]
 from threadweave_protocols.execution.v1 import execution_pb2_grpc
 
@@ -21,7 +23,7 @@ GrpcUnavailableError = ProtocolUnavailableError
 GrpcTimeoutError = ProtocolTimeoutError
 
 
-class GrpcClient(BaseProtocolClient):
+class AsyncGrpcClient(BaseProtocolClient):
     def __init__(
         self,
         endpoint: str | None = None,
@@ -34,18 +36,18 @@ class GrpcClient(BaseProtocolClient):
             namespace=namespace,
             application=application,
         )
-        self._channel: grpc.Channel | None = None
+        self._channel: grpc.aio.Channel | None = None
         self._stub: execution_pb2_grpc.ExecutionServiceStub | None = None
 
-    def connect(self, timeout: float = 10.0) -> None:
+    async def connect(self, timeout: float = 10.0) -> None:
         if self._channel is not None:
             return
 
-        channel = grpc.insecure_channel(grpc_target(self._endpoint))
+        channel = grpc.aio.insecure_channel(grpc_target(self._endpoint))
         try:
-            grpc.channel_ready_future(channel).result(timeout=timeout)
-        except grpc.FutureTimeoutError as error:
-            channel.close()
+            await asyncio.wait_for(channel.channel_ready(), timeout=timeout)
+        except (TimeoutError, grpc.aio.AioRpcError) as error:
+            await channel.close()
             raise GrpcUnavailableError(
                 f"gRPC channel unavailable at {self._endpoint}"
             ) from error
@@ -55,7 +57,7 @@ class GrpcClient(BaseProtocolClient):
             channel
         )
 
-    def submit_job(
+    async def submit_job(
         self,
         *,
         namespace: str,
@@ -78,24 +80,24 @@ class GrpcClient(BaseProtocolClient):
             metadata=metadata,
         )
         try:
-            response = self._stub.SubmitTask(request, timeout=timeout)
-        except grpc.RpcError as error:
+            response = await self._stub.SubmitTask(request, timeout=timeout)
+        except grpc.aio.AioRpcError as error:
             raise_rpc_error(error, "SubmitTask")
 
         return parse_submit_job_response(response)
 
-    def close(self) -> None:
+    async def close(self) -> None:
         if self._channel is not None:
-            self._channel.close()
+            await self._channel.close()
         self._channel = None
         self._stub = None
 
-    def __enter__(self) -> GrpcClient:
-        self.connect()
+    async def __aenter__(self) -> AsyncGrpcClient:
+        await self.connect()
         return self
 
-    def __exit__(self, *_args: object) -> None:
-        self.close()
+    async def __aexit__(self, *_args: object) -> None:
+        await self.close()
 
 
-ProtocolClient = GrpcClient
+AsyncProtocolClient = AsyncGrpcClient

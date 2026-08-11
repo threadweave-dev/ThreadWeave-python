@@ -44,6 +44,7 @@ class RegisteredTask(Protocol):
     @property
     def id(self) -> str:
         """Return the canonical task identifier."""
+        ...
 
 
 TaskT = TypeVar("TaskT", bound=RegisteredTask)

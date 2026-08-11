@@ -9,30 +9,29 @@ R = TypeVar("R")
 
 class Job(BaseJob[R], Generic[R]):
     """
-    Synchronous ThreadWeave Job.
+    Asynchronous ThreadWeave Job.
 
-    `Job` is the concrete job handle exposed by the synchronous ThreadWeave
-    API.
+    `Job` is the concrete job handle exposed by the asyncio ThreadWeave API.
 
     It represents an execution submitted to the ThreadWeave Core and provides
-    blocking operations for interacting with that execution.
+    asynchronous operations for interacting with that execution.
 
     Notes
     -----
-    Jobs are normally created by submitting a synchronous Task::
+    Jobs are normally created by submitting an asynchronous Task::
 
-        job = task.submit(...)
+        job = await task.submit(...)
 
-    The asyncio API provides its own Job implementation through
-    ``threadweave.asyncio``.
+    The synchronous API provides its own Job implementation through the
+    top-level ``threadweave`` package.
     """
 
-    def result(
+    async def result(
         self,
         timeout: float | None = None,
     ) -> R:
         """
-        Wait for the Job to complete and return its result.
+        Wait asynchronously for the Job to complete and return its result.
 
         Parameters
         ----------
@@ -48,10 +47,10 @@ class Job(BaseJob[R], Generic[R]):
         """
         ...
 
-    def cancel(self) -> None:
+    async def cancel(self) -> None:
         """
         Request cancellation of the Job.
 
-        The request is sent synchronously to the ThreadWeave Core.
+        The request is sent asynchronously to the ThreadWeave Core.
         """
         ...

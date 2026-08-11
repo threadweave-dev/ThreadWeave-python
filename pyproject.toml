@@ -45,15 +45,21 @@ dependencies = [
 name = "buf"
 url = "https://buf.build/gen/python"
 
-
 [project.optional-dependencies]
+docs = [
+    "mkdocs-material>=9.6",
+]
+
+[dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
     "ruff>=0.7",
     "mypy>=1.13",
+    "pre-commit>=4.0",
 ]
+
 
 docs = [
     "mkdocs-material>=9.6",
@@ -93,6 +99,11 @@ select = [
     "B",
     "UP",
 ]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.11"

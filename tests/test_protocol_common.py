@@ -17,6 +17,7 @@ def test_build_submit_job_request() -> None:
         namespace="development",
         application="demo",
         task="demo.add",
+        task_version="2026.08.12",
         args=(1, 2),
         kwargs={"trace": True},
         metadata={"application": "overridden", "caller": "test"},
@@ -29,6 +30,11 @@ def test_build_submit_job_request() -> None:
         "kwargs": {"trace": True},
     }
     assert request.serialization_format == "json"
+    assert request.command_id
+    assert request.task.namespace == "development"
+    assert request.task.application == "demo"
+    assert request.task.name == "demo.add"
+    assert request.task.version == "2026.08.12"
     assert request.metadata.entries == {
         "application": "demo",
         "caller": "test",

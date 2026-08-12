@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from dataclasses import dataclass
 from typing import NoReturn
 
@@ -9,9 +10,7 @@ from threadweave_protocols.common.v1 import metadata_pb2
 from threadweave_protocols.execution.v1 import execution_pb2, jobs_pb2
 
 DEFAULT_ENDPOINT = "unix:///tmp/threadweave.sock"
-# Wire value added by the current protocol schema. Older generated packages do
-# not expose its symbolic name yet.
-_JOB_STATE_ACCEPTED = 7
+_JOB_STATE_ACCEPTED = jobs_pb2.JOB_STATE_ACCEPTED
 
 
 class ProtocolClientError(RuntimeError):
@@ -71,6 +70,7 @@ def build_submit_job_request(
     namespace: str,
     application: str,
     task: str,
+    task_version: str | None = None,
     args: tuple[object, ...],
     kwargs: dict[str, object],
     metadata: dict[str, str] | None = None,
@@ -78,7 +78,7 @@ def build_submit_job_request(
     """Build the wire request shared by blocking and asyncio clients."""
     entries = dict(metadata or {})
     entries["application"] = application
-    return execution_pb2.SubmitTaskRequest(
+    request = execution_pb2.SubmitTaskRequest(
         application_namespace=namespace,
         task_name=task,
         arguments=json.dumps(
@@ -87,7 +87,14 @@ def build_submit_job_request(
         ).encode(),
         serialization_format="json",
         metadata=metadata_pb2.Metadata(entries=entries),
+        command_id=str(uuid.uuid4()),
     )
+    if task_version is not None:
+        request.task.namespace = namespace
+        request.task.application = application
+        request.task.name = task
+        request.task.version = task_version
+    return request
 
 
 def parse_submit_job_response(

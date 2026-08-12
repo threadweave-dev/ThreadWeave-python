@@ -1016,10 +1016,10 @@ wheels = [
 
 [[package]]
 name = "threadweave-python"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
-    { name = "threadweave-protocols-grpc-python" },
+    { name = "threadweave-protocols-grpc-python", specifier = ">=1.83.0.1.20260812000000" },
 ]
 
 [package.optional-dependencies]
@@ -1043,7 +1043,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.6" },
-    { name = "threadweave-protocols-grpc-python" },
+    { name = "threadweave-protocols-grpc-python", specifier = ">=1.83.0.1.20260812000000" },
 ]
 provides-extras = ["docs"]
 

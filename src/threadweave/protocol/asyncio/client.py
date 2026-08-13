@@ -3,16 +3,18 @@ from __future__ import annotations
 import asyncio
 
 import grpc  # type: ignore[import-untyped]
-from threadweave_protocols.execution.v1 import execution_pb2_grpc
+from threadweave_protocols.execution.v1 import execution_pb2, execution_pb2_grpc
 
 from threadweave.protocol.common import (
     BaseProtocolClient,
+    GetJobResult,
     ProtocolClientError,
     ProtocolTimeoutError,
     ProtocolUnavailableError,
     SubmitJobResult,
     build_submit_job_request,
     grpc_target,
+    parse_get_job_response,
     parse_submit_job_response,
     raise_rpc_error,
 )
@@ -87,6 +89,20 @@ class AsyncGrpcClient(BaseProtocolClient):
             raise_rpc_error(error, "SubmitTask")
 
         return parse_submit_job_response(response)
+
+    async def get_job(
+        self, job_id: str, *, timeout: float | None = None
+    ) -> GetJobResult:
+        if self._stub is None:
+            raise GrpcClientError("gRPC client is not connected")
+
+        try:
+            response = await self._stub.GetJob(
+                execution_pb2.GetJobRequest(job_id=job_id), timeout=timeout
+            )
+        except grpc.aio.AioRpcError as error:
+            raise_rpc_error(error, "GetJob")
+        return parse_get_job_response(response)
 
     async def close(self) -> None:
         if self._channel is not None:

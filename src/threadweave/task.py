@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from typing import Generic, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar, cast
 
 from threadweave._internal.task import BaseTask
 from threadweave.job import Job
+
+if TYPE_CHECKING:
+    from threadweave.app import ThreadWeave
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -56,4 +59,12 @@ class Task(BaseTask[P, R], Generic[P, R]):
         Job[R]
             A synchronous Job handle representing the submitted execution.
         """
-        raise NotImplementedError("Remote task submission is not implemented yet.")
+        application = cast("ThreadWeave", self._application)
+        result = application.client.submit_job(
+            namespace=application.namespace,
+            application=application.name,
+            task=self.name,
+            args=tuple(args),
+            kwargs=dict(kwargs),
+        )
+        return Job(id=result.job_id, task=self)

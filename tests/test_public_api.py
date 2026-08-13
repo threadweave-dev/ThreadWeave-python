@@ -32,5 +32,5 @@ def test_threadweave_rejects_legacy_endpoint() -> None:
     with pytest.raises(TypeError, match="unexpected keyword argument 'endpoint'"):
         ThreadWeave(
             "example",
-            endpoint="localhost:50052",
+            endpoint="localhost:50052",  # type: ignore[call-arg]
         )

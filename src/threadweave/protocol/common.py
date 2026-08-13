@@ -33,6 +33,16 @@ class SubmitJobResult:
     state: str
 
 
+@dataclass(frozen=True, slots=True)
+class GetJobResult:
+    """Current job state and its result payload, when available."""
+
+    state: str
+    payload: bytes | None
+    serialization_format: str | None
+    failure: str | None
+
+
 class BaseProtocolClient:
     """Configuration shared by blocking and asyncio protocol clients."""
 
@@ -117,6 +127,31 @@ def parse_submit_job_response(
     return SubmitJobResult(
         job_id=response.job.job_id,
         state=state.removeprefix("JOB_STATE_"),
+    )
+
+
+def parse_get_job_response(response: execution_pb2.GetJobResponse) -> GetJobResult:
+    """Validate and convert a GetJob response."""
+    if not response.HasField("job"):
+        raise ProtocolClientError("GetJob response does not contain a job")
+
+    try:
+        state = jobs_pb2.JobState.Name(response.job.state)
+    except ValueError as error:
+        raise ProtocolClientError(
+            f"GetJob response contains unknown job state {response.job.state}"
+        ) from error
+
+    if not response.HasField("result"):
+        return GetJobResult(state.removeprefix("JOB_STATE_"), None, None, None)
+
+    result = response.result
+    failure = str(result.failure) if result.HasField("failure") else None
+    return GetJobResult(
+        state.removeprefix("JOB_STATE_"),
+        result.payload,
+        result.serialization_format or None,
+        failure,
     )
 
 

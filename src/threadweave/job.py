@@ -1,8 +1,15 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+import json
+import time
+from time import monotonic
+from typing import TYPE_CHECKING, Generic, TypeVar, cast
 
 from threadweave._internal.job import BaseJob
+from threadweave.protocol.common import ProtocolClientError
+
+if TYPE_CHECKING:
+    from threadweave.app import ThreadWeave
 
 R = TypeVar("R")
 
@@ -46,7 +53,33 @@ class Job(BaseJob[R], Generic[R]):
         R
             The value returned by the executed Task.
         """
-        raise NotImplementedError("Waiting for remote jobs is not implemented yet.")
+        application = cast("ThreadWeave", self.task.application)
+        deadline = None if timeout is None else monotonic() + timeout
+
+        while True:
+            remaining = None if deadline is None else deadline - monotonic()
+            if remaining is not None and remaining <= 0:
+                raise TimeoutError(f"Job {self.id!r} did not complete in time")
+
+            response = application.client.get_job(self.id, timeout=remaining)
+            if response.state == "SUCCEEDED":
+                if response.payload is None:
+                    raise ProtocolClientError(
+                        f"Job {self.id!r} succeeded without a result payload"
+                    )
+                if response.serialization_format != "json":
+                    raise ProtocolClientError(
+                        "Unsupported job result serialization format "
+                        f"{response.serialization_format!r}"
+                    )
+                return cast(R, json.loads(response.payload))
+            if response.state in {"FAILED", "CANCELLED", "REJECTED", "TIMED_OUT"}:
+                detail = f": {response.failure}" if response.failure else ""
+                raise ProtocolClientError(
+                    f"Job {self.id!r} ended in state {response.state}{detail}"
+                )
+
+            time.sleep(0.1 if remaining is None else min(0.1, remaining))
 
     def cancel(self) -> None:
         """

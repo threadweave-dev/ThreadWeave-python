@@ -75,6 +75,7 @@ packages = ["src/threadweave"]
 
 [tool.hatch.build.targets.sdist]
 include = [
+    "/CHANGELOG.md",
     "/LICENSE",
     "/README.md",
     "/pyproject.toml",

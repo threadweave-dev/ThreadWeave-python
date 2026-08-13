@@ -44,7 +44,7 @@ def test_build_submit_job_request() -> None:
 def test_parse_submit_job_response() -> None:
     response = execution_pb2.SubmitTaskResponse()
     response.job.job_id = "job-1"
-    response.job.state = 7
+    response.job.state = 7  # type: ignore[assignment]
 
     assert parse_submit_job_response(response).job_id == "job-1"
     assert parse_submit_job_response(response).state == "ACCEPTED"

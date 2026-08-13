@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from threadweave.core_process import CoreProcess
-from threadweave.grpc_client import GrpcClient
+from threadweave.protocol.client import GrpcClient
 
 
 def main() -> None:

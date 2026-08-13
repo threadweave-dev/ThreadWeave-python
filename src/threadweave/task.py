@@ -39,7 +39,7 @@ class Task(BaseTask[P, R], Generic[P, R]):
 
         This does not submit a Job to the ThreadWeave Core.
         """
-        ...
+        return self._function(*args, **kwargs)
 
     def submit(
         self,
@@ -56,4 +56,4 @@ class Task(BaseTask[P, R], Generic[P, R]):
         Job[R]
             A synchronous Job handle representing the submitted execution.
         """
-        ...
+        raise NotImplementedError("Remote task submission is not implemented yet.")

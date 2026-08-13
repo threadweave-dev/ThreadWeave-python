@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from threadweave.core_process import CoreProcess, CoreProcessError, decode_ready_message
-from threadweave.grpc_client import GrpcClient
+from threadweave.protocol.client import GrpcClient
 
 
 def test_decode_ready_message() -> None:

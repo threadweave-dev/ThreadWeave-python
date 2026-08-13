@@ -48,7 +48,7 @@ class BaseTask(Generic[P, R]):
         *,
         id: str,
         name: str,
-        application: BaseThreadWeave,
+        application: BaseThreadWeave[Any],
         function: Callable[P, R],
         options: TaskOptions,
     ) -> None:
@@ -69,7 +69,7 @@ class BaseTask(Generic[P, R]):
         return self._name
 
     @property
-    def application(self) -> BaseThreadWeave:
+    def application(self) -> BaseThreadWeave[Any]:
         """Return the application containing this Task."""
         return self._application
 

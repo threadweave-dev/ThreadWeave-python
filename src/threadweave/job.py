@@ -46,7 +46,7 @@ class Job(BaseJob[R], Generic[R]):
         R
             The value returned by the executed Task.
         """
-        ...
+        raise NotImplementedError("Waiting for remote jobs is not implemented yet.")
 
     def cancel(self) -> None:
         """
@@ -54,4 +54,4 @@ class Job(BaseJob[R], Generic[R]):
 
         The request is sent synchronously to the ThreadWeave Core.
         """
-        ...
+        raise NotImplementedError("Remote job cancellation is not implemented yet.")

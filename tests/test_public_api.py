@@ -1,3 +1,5 @@
+import pytest
+
 from threadweave import ThreadWeave
 from threadweave.asyncio import ThreadWeave as AsyncThreadWeave
 
@@ -26,14 +28,9 @@ def test_async_threadweave_accepts_a_grpc_address() -> None:
     assert app.client.endpoint == "http://localhost:50051"
 
 
-def test_grpc_address_and_legacy_endpoint_are_mutually_exclusive() -> None:
-    try:
+def test_threadweave_rejects_legacy_endpoint() -> None:
+    with pytest.raises(TypeError, match="unexpected keyword argument 'endpoint'"):
         ThreadWeave(
             "example",
-            grpc_address="localhost:50051",
             endpoint="localhost:50052",
         )
-    except ValueError as error:
-        assert str(error) == "grpc_address and endpoint are mutually exclusive"
-    else:
-        raise AssertionError("ThreadWeave accepted two gRPC addresses")

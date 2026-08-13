@@ -61,6 +61,20 @@ tw = ThreadWeave()
 Task definitions stay exactly the same. Only operations that communicate with
 the underlying client become awaitable.
 
+## Connect to an existing Core
+
+When the Rust Core is already running, for example through Docker Compose,
+pass its exposed gRPC address when creating the application:
+
+```python
+from threadweave import ThreadWeave
+
+tw = ThreadWeave("my-app", grpc_address="localhost:50051")
+```
+
+The address may also include the `http://` scheme. If `grpc_address` is not
+provided, the SDK uses its default local Unix socket.
+
 ## Submit a task
 
 ### From synchronous code

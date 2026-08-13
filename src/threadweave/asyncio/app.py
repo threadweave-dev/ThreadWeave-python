@@ -40,6 +40,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         name: str,
         *,
         namespace: str = "default",
+        grpc_address: str | None = None,
         endpoint: str | None = None,
         default_queue: str | None = None,
         default_resources: Mapping[str, Any] | None = None,
@@ -54,8 +55,11 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
             default_capabilities=default_capabilities,
         )
 
+        if grpc_address is not None and endpoint is not None:
+            raise ValueError("grpc_address and endpoint are mutually exclusive")
+
         self._client = client or AsyncProtocolClient(
-            endpoint=endpoint,
+            endpoint=grpc_address or endpoint,
             namespace=self._namespace,
             application=self._name,
         )

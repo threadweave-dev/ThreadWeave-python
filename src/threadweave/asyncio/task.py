@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable
-from typing import Generic, ParamSpec, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar, cast
 
 from threadweave._internal.task import BaseTask
 from threadweave.asyncio.job import Job
+
+if TYPE_CHECKING:
+    from threadweave.asyncio.app import ThreadWeave
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -57,4 +60,12 @@ class Task(BaseTask[P, R], Generic[P, R]):
         Job[R]
             An asynchronous Job handle representing the submitted execution.
         """
-        raise NotImplementedError("Remote task submission is not implemented yet.")
+        application = cast("ThreadWeave", self._application)
+        result = await application.client.submit_job(
+            namespace=application.namespace,
+            application=application.name,
+            task=self.name,
+            args=tuple(args),
+            kwargs=dict(kwargs),
+        )
+        return Job(id=result.job_id, task=self)

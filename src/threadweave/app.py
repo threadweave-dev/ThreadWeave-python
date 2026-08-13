@@ -40,7 +40,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         name: str,
         *,
         namespace: str = "default",
-        endpoint: str | None = None,
+        grpc_address: str | None = None,
         default_queue: str | None = None,
         default_resources: Mapping[str, Any] | None = None,
         default_capabilities: tuple[str, ...] = (),
@@ -55,7 +55,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         )
 
         self._client = client or ProtocolClient(
-            endpoint=endpoint,
+            endpoint=grpc_address,
             namespace=self._namespace,
             application=self._name,
         )
@@ -73,8 +73,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         self,
         function: Callable[P, R],
         /,
-    ) -> Task[P, R]:
-        ...
+    ) -> Task[P, R]: ...
 
     @overload
     def task(
@@ -88,8 +87,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
         capabilities: tuple[str, ...] | list[str] | None = None,
         retries: int = 0,
         timeout: float | None = None,
-    ) -> Callable[[Callable[P, R]], Task[P, R]]:
-        ...
+    ) -> Callable[[Callable[P, R]], Task[P, R]]: ...
 
     def task(
         self,
@@ -144,8 +142,7 @@ class ThreadWeave(BaseThreadWeave[Task[Any, Any]]):
 
         if not callable(function):
             raise TypeError(
-                "ThreadWeave.task expects a callable or must be used "
-                "as a decorator."
+                "ThreadWeave.task expects a callable or must be used as a decorator."
             )
 
         return decorator(function)

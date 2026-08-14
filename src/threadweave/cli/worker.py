@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib
+import sys
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -20,6 +22,10 @@ def load_application(import_string: str) -> BaseThreadWeave[Any]:
         raise typer.BadParameter(
             "application must use the form 'module:attribute'"
         )
+
+    working_directory = str(Path.cwd())
+    if working_directory not in sys.path:
+        sys.path.insert(0, working_directory)
 
     try:
         module = importlib.import_module(module_name)

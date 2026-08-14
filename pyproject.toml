@@ -39,7 +39,11 @@ classifiers = [
 
 dependencies = [
     "threadweave-protocols-grpc-python>=1.83.0.1.20260812000000",
+    "typer>=0.12",
 ]
+
+[project.scripts]
+threadweave = "threadweave.cli.main:main"
 
 [[tool.uv.index]]
 name = "buf"

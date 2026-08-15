@@ -38,7 +38,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "threadweave-protocols-grpc-python>=1.83.0.1.20260815093337",
+    "threadweave-protocols-grpc-python",
     "typer>=0.12",
 ]
 

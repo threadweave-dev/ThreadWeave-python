@@ -8,7 +8,8 @@ from typing import Annotated
 import typer
 
 from threadweave.app import ThreadWeave
-from threadweave.runtime.worker import GrpcRuntimeClient, Worker
+from threadweave.protocol.runtime_client import RuntimeProtocolClient
+from threadweave.runtime.worker import Worker
 
 app = typer.Typer(
     help="Run a ThreadWeave worker application.",
@@ -51,7 +52,7 @@ def run(
     """Load an application and execute tasks assigned by the Core."""
     worker_application = load_application(application)
     typer.echo(f"Loaded {worker_application.qualified_name}")
-    runtime_client = GrpcRuntimeClient(worker_application.client.endpoint)
+    runtime_client = RuntimeProtocolClient(worker_application.client.endpoint)
     worker = Worker(worker_application, runtime_client)
     try:
         worker.run_forever()

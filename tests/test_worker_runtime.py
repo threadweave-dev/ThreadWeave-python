@@ -16,16 +16,37 @@ class RecordingClient:
     def connect(self, timeout: float = 10.0) -> None:
         pass
 
-    def acquire_execution(self) -> worker_pb2.AssignExecutionRequest | None:
+    def acquire_execution(
+        self, *, timeout: float | None = None
+    ) -> worker_pb2.AssignExecutionRequest | None:
         return None
 
-    def report_execution(
+    def start_execution(
         self,
         assignment: worker_pb2.AssignExecutionRequest,
-        state: int,
-        outcome: Any = None,
+        *,
+        timeout: float | None = None,
     ) -> None:
-        self.reports.append((state, outcome))
+        self.reports.append((execution_pb2.EXECUTION_STATE_RUNNING, None))
+
+    def complete_execution(
+        self,
+        assignment: worker_pb2.AssignExecutionRequest,
+        result: Any,
+        *,
+        timeout: float | None = None,
+    ) -> None:
+        self.reports.append((execution_pb2.EXECUTION_STATE_SUCCEEDED, result))
+
+    def fail_execution(
+        self,
+        assignment: worker_pb2.AssignExecutionRequest,
+        failure: Any,
+        *,
+        timeout: float | None = None,
+    ) -> None:
+        outcome = type("Outcome", (), {"failure": failure})()
+        self.reports.append((execution_pb2.EXECUTION_STATE_FAILED, outcome))
 
     def close(self) -> None:
         pass

@@ -1096,7 +1096,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.6" },
-    { name = "threadweave-protocols-grpc-python", specifier = ">=1.83.0.1.20260815093337" },
+    { name = "threadweave-protocols-grpc-python" },
     { name = "typer", specifier = ">=0.12" },
 ]
 provides-extras = ["docs"]

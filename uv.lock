@@ -1068,7 +1068,7 @@ wheels = [
 
 [[package]]
 name = "threadweave-python"
-version = "0.1.10"
+version = "0.1.11"
 source = { editable = "." }
 dependencies = [
     { name = "threadweave-protocols-grpc-python" },

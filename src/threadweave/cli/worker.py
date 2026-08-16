@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 import logging
 import sys
@@ -64,9 +65,8 @@ def run(
     runtime_client = RuntimeProtocolClient(worker_addr)
     worker = PythonRuntime(worker_application, runtime_client)
     try:
-        runtime_client.connect()
         logging.getLogger(__name__).info("Connected to Rust Worker at %s", worker_addr)
-        worker.run_forever()
+        asyncio.run(worker.run_forever())
     except KeyboardInterrupt:
         typer.echo("Worker stopped")
 

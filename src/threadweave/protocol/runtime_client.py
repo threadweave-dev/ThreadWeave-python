@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any
 
 import grpc  # type: ignore[import-untyped]
 from google.protobuf.timestamp_pb2 import Timestamp
 from threadweave_protocols.common.v1 import errors_pb2
-from threadweave_protocols.execution.v1 import execution_pb2, results_pb2
-from threadweave_protocols.runtime.v1 import runtime_pb2, runtime_pb2_grpc, worker_pb2
+from threadweave_protocols.execution.v1 import results_pb2
+from threadweave_protocols.runtime.v1 import heartbeat_pb2, runtime_pb2_grpc, worker_pb2
 
 from threadweave.protocol.common import (
     BaseProtocolClient,
@@ -19,134 +22,211 @@ from threadweave.protocol.common import (
 
 
 class RuntimeProtocolClient(BaseProtocolClient):
-    """Blocking transport for a Rust Worker's runtime-facing API."""
+    """Async facade over one persistent Worker/runtime control session."""
 
-    def __init__(self, endpoint: str | None = None) -> None:
+    def __init__(
+        self, endpoint: str | None = None, *, runtime_id: str | None = None
+    ) -> None:
         super().__init__(endpoint)
-        self._channel: grpc.Channel | None = None
-        self._stub: Any = None
+        self.runtime_id = runtime_id or str(uuid.uuid4())
+        self._channel: grpc.aio.Channel | None = None
+        self._call: Any = None
+        self._outgoing: asyncio.Queue[Any | None] = asyncio.Queue()
+        self._writer_task: asyncio.Task[None] | None = None
+        self._heartbeat_task: asyncio.Task[None] | None = None
+        self._sequences: dict[str, int] = {}
 
-    def connect(self, timeout: float = 10.0) -> None:
+    async def connect(self, timeout: float = 10.0) -> None:
         if self._channel is not None:
             return
-        channel = grpc.insecure_channel(grpc_target(self._endpoint))
+        channel = grpc.aio.insecure_channel(grpc_target(self._endpoint))
         try:
-            grpc.channel_ready_future(channel).result(timeout=timeout)
-        except grpc.FutureTimeoutError as error:
-            channel.close()
+            await asyncio.wait_for(channel.channel_ready(), timeout)
+        except (TimeoutError, grpc.RpcError) as error:
+            await channel.close()
             raise ProtocolUnavailableError(
                 f"gRPC channel unavailable at {self._endpoint}"
             ) from error
         self._channel = channel
-        self._stub = runtime_pb2_grpc.RuntimeServiceStub(  # type: ignore[no-untyped-call]
-            channel
+        stub = runtime_pb2_grpc.RuntimeServiceStub(channel)  # type: ignore[no-untyped-call]
+        self._call = stub.RuntimeSession()  # type: ignore[attr-defined]
+        self._writer_task = asyncio.create_task(self._writer(), name="runtime-events")
+        self._heartbeat_task = asyncio.create_task(
+            self._heartbeats(), name="runtime-heartbeats"
+        )
+        await self._send(
+            worker_pb2.RuntimeEvent(  # type: ignore[attr-defined]
+                ready=worker_pb2.RuntimeReady(  # type: ignore[attr-defined]
+                    runtime_id=self.runtime_id
+                )
+            )
         )
 
-    def acquire_execution(
-        self, *, timeout: float | None = None
-    ) -> worker_pb2.AssignExecutionRequest | None:
-        stub = self._require_stub()
+    async def events(self) -> AsyncIterator[Any]:
+        call = self._require_call()
         try:
-            response = stub.AcquireExecution(
-                # The worker owns cluster identity. The current POC protocol still
-                # has a legacy WorkerRegistration field, but the worker runtime
-                # endpoint deliberately ignores it.
-                runtime_pb2.AcquireExecutionRequest(),
-                timeout=timeout,
-            )
+            async for command in call:
+                yield command
         except grpc.RpcError as error:
-            raise_rpc_error(error, "AcquireExecution")
-        return response.assignment if response.HasField("assignment") else None
+            raise_rpc_error(error, "RuntimeSession")
 
-    def start_execution(
+    async def execution_started(
+        self, assignment: worker_pb2.AssignExecutionRequest
+    ) -> None:
+        await self._send_event(
+            assignment,
+            "execution_started",
+            worker_pb2.ExecutionStarted,  # type: ignore[attr-defined]
+            observed_at=_now(),
+        )
+
+    async def execution_progress(
+        self, assignment: worker_pb2.AssignExecutionRequest, progress: float
+    ) -> None:
+        await self._send_event(
+            assignment,
+            "execution_progress",
+            worker_pb2.ExecutionProgress,  # type: ignore[attr-defined]
+            progress=progress,
+            observed_at=_now(),
+        )
+
+    async def execution_metrics(
         self,
         assignment: worker_pb2.AssignExecutionRequest,
         *,
-        timeout: float | None = None,
+        elapsed_ms: int | None = None,
+        deserialization_ms: int | None = None,
+        execution_ms: int | None = None,
+        serialization_ms: int | None = None,
+        progress: float | None = None,
+        custom_metrics: dict[str, float] | None = None,
     ) -> None:
-        self._report_execution(
+        values: dict[str, Any] = {"custom_metrics": custom_metrics or {}}
+        for name, value in (
+            ("elapsed_ms", elapsed_ms),
+            ("deserialization_ms", deserialization_ms),
+            ("execution_ms", execution_ms),
+            ("serialization_ms", serialization_ms),
+            ("progress", progress),
+        ):
+            if value is not None:
+                values[name] = value
+        await self._send_event(
             assignment,
-            execution_pb2.EXECUTION_STATE_RUNNING,
-            sequence_number=1,
-            timeout=timeout,
+            "execution_metrics",
+            worker_pb2.ExecutionMetrics,  # type: ignore[attr-defined]
+            **values,
         )
 
-    def complete_execution(
+    async def execution_completed(
         self,
         assignment: worker_pb2.AssignExecutionRequest,
         result: results_pb2.JobResult,
-        *,
-        timeout: float | None = None,
     ) -> None:
-        self._report_execution(
+        await self._send_event(
             assignment,
-            execution_pb2.EXECUTION_STATE_SUCCEEDED,
-            sequence_number=2,
-            outcome=result,
-            timeout=timeout,
+            "execution_completed",
+            worker_pb2.ExecutionCompleted,  # type: ignore[attr-defined]
+            result=result,
+            observed_at=_now(),
         )
+        self._sequences.pop(assignment.assignment_id, None)
 
-    def fail_execution(
+    async def execution_failed(
         self,
         assignment: worker_pb2.AssignExecutionRequest,
         failure: errors_pb2.Error,
-        *,
-        timeout: float | None = None,
     ) -> None:
-        self._report_execution(
+        await self._send_event(
             assignment,
-            execution_pb2.EXECUTION_STATE_FAILED,
-            sequence_number=2,
-            outcome=results_pb2.JobResult(failure=failure),
-            timeout=timeout,
+            "execution_failed",
+            worker_pb2.ExecutionFailed,  # type: ignore[attr-defined]
+            failure=failure,
+            observed_at=_now(),
         )
+        self._sequences.pop(assignment.assignment_id, None)
 
-    def _report_execution(
+    async def _send_event(
         self,
         assignment: worker_pb2.AssignExecutionRequest,
-        state: execution_pb2.ExecutionState,
-        *,
-        sequence_number: int,
-        timeout: float | None,
-        outcome: results_pb2.JobResult | None = None,
+        field: str,
+        event_type: Any,
+        **values: Any,
     ) -> None:
-        stub = self._require_stub()
-        observed_at = Timestamp()
-        observed_at.GetCurrentTime()
-        request = worker_pb2.ReportExecutionRequest(
-            report_id=str(uuid.uuid4()),
+        sequence = self._sequences.get(assignment.assignment_id, 0) + 1
+        self._sequences[assignment.assignment_id] = sequence
+        payload = event_type(
             assignment_id=assignment.assignment_id,
             execution_id=assignment.execution_id,
-            sequence_number=sequence_number,
-            state=state,
-            observed_at=observed_at,
+            sequence_number=sequence,
+            **values,
         )
-        if outcome is not None:
-            request.outcome.CopyFrom(outcome)
+        await self._send(
+            worker_pb2.RuntimeEvent(**{field: payload})  # type: ignore[attr-defined]
+        )
+
+    async def _send(self, event: Any) -> None:
+        self._require_call()
+        await self._outgoing.put(event)
+
+    async def _writer(self) -> None:
+        call = self._require_call()
+        while (event := await self._outgoing.get()) is not None:
+            await call.write(event)
+        await call.done_writing()
+
+    async def _heartbeats(self) -> None:
+        sequence = 0
         try:
-            response = stub.ReportExecution(request, timeout=timeout)
-        except grpc.RpcError as error:
-            raise_rpc_error(error, "ReportExecution")
-        if not response.accepted:
-            raise ProtocolClientError("Worker rejected the execution report")
+            while True:
+                await asyncio.sleep(10)
+                sequence += 1
+                await self._send(
+                    worker_pb2.RuntimeEvent(  # type: ignore[attr-defined]
+                        heartbeat=heartbeat_pb2.RuntimeHeartbeat(
+                            runtime_id=self.runtime_id,
+                            sequence_number=sequence,
+                            observed_at=_now(),
+                        )
+                    )
+                )
+        except asyncio.CancelledError:
+            raise
 
-    def _require_stub(self) -> Any:
-        if self._stub is None:
+    def _require_call(self) -> Any:
+        if self._call is None:
             raise ProtocolClientError("runtime protocol client is not connected")
-        return self._stub
+        return self._call
 
-    def close(self) -> None:
+    async def close(self) -> None:
+        if self._heartbeat_task is not None:
+            self._heartbeat_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._heartbeat_task
+        if self._writer_task is not None:
+            await self._outgoing.put(None)
+            with contextlib.suppress(grpc.RpcError):
+                await self._writer_task
         if self._channel is not None:
-            self._channel.close()
+            await self._channel.close()
         self._channel = None
-        self._stub = None
+        self._call = None
+        self._writer_task = None
+        self._heartbeat_task = None
 
-    def __enter__(self) -> RuntimeProtocolClient:
-        self.connect()
+    async def __aenter__(self) -> RuntimeProtocolClient:
+        await self.connect()
         return self
 
-    def __exit__(self, *_args: object) -> None:
-        self.close()
+    async def __aexit__(self, *_args: object) -> None:
+        await self.close()
+
+
+def _now() -> Timestamp:
+    value = Timestamp()
+    value.GetCurrentTime()
+    return value
 
 
 GrpcRuntimeClient = RuntimeProtocolClient

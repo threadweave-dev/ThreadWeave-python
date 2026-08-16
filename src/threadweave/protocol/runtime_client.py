@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import platform
 import uuid
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 import grpc  # type: ignore[import-untyped]
@@ -21,33 +19,12 @@ from threadweave.protocol.common import (
 
 
 class RuntimeProtocolClient(BaseProtocolClient):
-    """Blocking transport for the Core's worker-facing runtime API."""
+    """Blocking transport for a Rust Worker's runtime-facing API."""
 
-    def __init__(
-        self, endpoint: str | None = None, *, worker_id: str | None = None
-    ) -> None:
+    def __init__(self, endpoint: str | None = None) -> None:
         super().__init__(endpoint)
         self._channel: grpc.Channel | None = None
         self._stub: Any = None
-        try:
-            implementation_version = version("threadweave-python")
-        except PackageNotFoundError:
-            implementation_version = "unknown"
-        self._worker = worker_pb2.WorkerRegistration(
-            worker_id=worker_id or str(uuid.uuid4()),
-            generation=str(uuid.uuid4()),
-            implementation_version=implementation_version,
-            protocol_versions=["v1"],
-            executors=[
-                worker_pb2.ExecutorDescriptor(
-                    executor_id="python-sync",
-                    runtime=f"python-{platform.python_version()}",
-                    implementation_version=implementation_version,
-                    serialization_formats=["json"],
-                    concurrency_limit=1,
-                )
-            ],
-        )
 
     def connect(self, timeout: float = 10.0) -> None:
         if self._channel is not None:
@@ -71,7 +48,10 @@ class RuntimeProtocolClient(BaseProtocolClient):
         stub = self._require_stub()
         try:
             response = stub.AcquireExecution(
-                runtime_pb2.AcquireExecutionRequest(worker=self._worker),
+                # The worker owns cluster identity. The current POC protocol still
+                # has a legacy WorkerRegistration field, but the worker runtime
+                # endpoint deliberately ignores it.
+                runtime_pb2.AcquireExecutionRequest(),
                 timeout=timeout,
             )
         except grpc.RpcError as error:

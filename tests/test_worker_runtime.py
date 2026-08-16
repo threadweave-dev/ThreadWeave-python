@@ -12,6 +12,7 @@ from threadweave.runtime.worker import Worker
 class RecordingClient:
     def __init__(self) -> None:
         self.reports: list[tuple[int, Any]] = []
+        self.closed = False
 
     def connect(self, timeout: float = 10.0) -> None:
         pass
@@ -49,7 +50,7 @@ class RecordingClient:
         self.reports.append((execution_pb2.EXECUTION_STATE_FAILED, outcome))
 
     def close(self) -> None:
-        pass
+        self.closed = True
 
 
 def assignment(task: str, payload: bytes) -> worker_pb2.AssignExecutionRequest:
@@ -112,3 +113,54 @@ def test_unknown_task_becomes_failed_report() -> None:
     assert state == execution_pb2.EXECUTION_STATE_FAILED
     assert outcome.failure.code == "TaskNotRegisteredError"
     assert "default.example.missing" in outcome.failure.message
+
+
+def test_keyword_arguments_are_deserialized() -> None:
+    application = ThreadWeave("example")
+
+    @application.task
+    def add(a: int, *, b: int) -> int:
+        return a + b
+
+    client = RecordingClient()
+    Worker(application, client).execute(
+        assignment("add", b'{"args":[40],"kwargs":{"b":2}}')
+    )
+
+    assert client.reports[-1][1].payload == b"42"
+
+
+def test_unsupported_serialization_format_becomes_failed_report() -> None:
+    application = ThreadWeave("example")
+
+    @application.task
+    def add(a: int, b: int) -> int:
+        return a + b
+
+    client = RecordingClient()
+    work = assignment("add", b"data")
+    work.serialization_format = "msgpack"
+
+    Worker(application, client).execute(work)
+
+    state, outcome = client.reports[-1]
+    assert state == execution_pb2.EXECUTION_STATE_FAILED
+    assert outcome.failure.code == "ValueError"
+    assert "unsupported argument serialization format" in outcome.failure.message
+
+
+def test_run_forever_closes_client_on_keyboard_interrupt() -> None:
+    application = ThreadWeave("example")
+    client = RecordingClient()
+
+    def interrupt(*, timeout: float | None = None) -> None:
+        raise KeyboardInterrupt
+
+    client.acquire_execution = interrupt  # type: ignore[method-assign]
+
+    try:
+        Worker(application, client).run_forever()
+    except KeyboardInterrupt:
+        pass
+
+    assert client.closed

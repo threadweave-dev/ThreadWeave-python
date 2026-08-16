@@ -48,11 +48,18 @@ def run(
         str,
         typer.Argument(help="Application to load, in module:attribute form."),
     ],
+    worker_addr: Annotated[
+        str,
+        typer.Option(
+            "--worker-addr",
+            help="Address of the Rust Worker's runtime API.",
+        ),
+    ] = "127.0.0.1:50052",
 ) -> None:
-    """Load an application and execute tasks assigned by the Core."""
+    """Load an application and execute tasks assigned by a Rust Worker."""
     worker_application = load_application(application)
     typer.echo(f"Loaded {worker_application.qualified_name}")
-    runtime_client = RuntimeProtocolClient(worker_application.client.endpoint)
+    runtime_client = RuntimeProtocolClient(worker_addr)
     worker = Worker(worker_application, runtime_client)
     try:
         worker.run_forever()

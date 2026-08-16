@@ -31,7 +31,7 @@ class FakeStub:
 
 
 def make_client(stub: FakeStub) -> RuntimeProtocolClient:
-    client = RuntimeProtocolClient("http://core:50051", worker_id="worker-1")
+    client = RuntimeProtocolClient("127.0.0.1:50052")
     client._stub = stub
     return client
 
@@ -45,7 +45,7 @@ def test_acquire_uses_generated_request_and_returns_assignment() -> None:
     assert result == assignment
     request, timeout = stub.acquire_calls[0]
     assert isinstance(request, runtime_pb2.AcquireExecutionRequest)
-    assert request.worker.worker_id == "worker-1"
+    assert not request.HasField("worker")
     assert timeout == 12.0
 
 
@@ -88,4 +88,4 @@ def test_rejected_report_uses_protocol_client_error() -> None:
 
 def test_operations_require_a_connected_client() -> None:
     with pytest.raises(ProtocolClientError, match="not connected"):
-        RuntimeProtocolClient("core:50051").acquire_execution()
+        RuntimeProtocolClient("127.0.0.1:50052").acquire_execution()

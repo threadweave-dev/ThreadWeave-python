@@ -43,7 +43,7 @@ def test_worker_address_is_passed_to_runtime_client(
         def __init__(self, endpoint: str) -> None:
             endpoints.append(endpoint)
 
-    class FakeWorker:
+    class FakePythonRuntime:
         def __init__(self, application: object, client: object) -> None:
             pass
 
@@ -53,7 +53,9 @@ def test_worker_address_is_passed_to_runtime_client(
     monkeypatch.setattr(
         "threadweave.cli.worker.RuntimeProtocolClient", FakeRuntimeClient
     )
-    monkeypatch.setattr("threadweave.cli.worker.Worker", FakeWorker)
+    monkeypatch.setattr(
+        "threadweave.cli.worker.PythonRuntime", FakePythonRuntime
+    )
 
     result = CliRunner().invoke(
         cli_app,

@@ -6,7 +6,7 @@ from threadweave_protocols.execution.v1 import execution_pb2, jobs_pb2
 from threadweave_protocols.runtime.v1 import worker_pb2
 
 from threadweave import ThreadWeave
-from threadweave.runtime.worker import Worker
+from threadweave.runtime.worker import PythonRuntime
 
 
 class RecordingClient:
@@ -74,7 +74,7 @@ def test_assignment_resolves_task_deserializes_arguments_and_returns_json() -> N
         return a + b
 
     client = RecordingClient()
-    Worker(application, client).execute(
+    PythonRuntime(application, client).execute(
         assignment("add", b'{"args":[40,2],"kwargs":{}}')
     )
 
@@ -95,7 +95,7 @@ def test_task_exception_becomes_failed_report() -> None:
         raise ValueError("bad input")
 
     client = RecordingClient()
-    Worker(application, client).execute(assignment("explode", b'{"args":[]}'))
+    PythonRuntime(application, client).execute(assignment("explode", b'{"args":[]}'))
 
     state, outcome = client.reports[-1]
     assert state == execution_pb2.EXECUTION_STATE_FAILED
@@ -107,7 +107,7 @@ def test_unknown_task_becomes_failed_report() -> None:
     application = ThreadWeave("example")
     client = RecordingClient()
 
-    Worker(application, client).execute(assignment("missing", b'{"args":[]}'))
+    PythonRuntime(application, client).execute(assignment("missing", b'{"args":[]}'))
 
     state, outcome = client.reports[-1]
     assert state == execution_pb2.EXECUTION_STATE_FAILED
@@ -123,7 +123,7 @@ def test_keyword_arguments_are_deserialized() -> None:
         return a + b
 
     client = RecordingClient()
-    Worker(application, client).execute(
+    PythonRuntime(application, client).execute(
         assignment("add", b'{"args":[40],"kwargs":{"b":2}}')
     )
 
@@ -141,7 +141,7 @@ def test_unsupported_serialization_format_becomes_failed_report() -> None:
     work = assignment("add", b"data")
     work.serialization_format = "msgpack"
 
-    Worker(application, client).execute(work)
+    PythonRuntime(application, client).execute(work)
 
     state, outcome = client.reports[-1]
     assert state == execution_pb2.EXECUTION_STATE_FAILED
@@ -159,7 +159,7 @@ def test_run_forever_closes_client_on_keyboard_interrupt() -> None:
     client.acquire_execution = interrupt  # type: ignore[method-assign]
 
     try:
-        Worker(application, client).run_forever()
+        PythonRuntime(application, client).run_forever()
     except KeyboardInterrupt:
         pass
 

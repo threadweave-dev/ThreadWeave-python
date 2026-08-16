@@ -9,7 +9,7 @@ import typer
 
 from threadweave.app import ThreadWeave
 from threadweave.protocol.runtime_client import RuntimeProtocolClient
-from threadweave.runtime.worker import Worker
+from threadweave.runtime.worker import PythonRuntime
 
 app = typer.Typer(
     help="Run a ThreadWeave worker application.",
@@ -60,7 +60,7 @@ def run(
     worker_application = load_application(application)
     typer.echo(f"Loaded {worker_application.qualified_name}")
     runtime_client = RuntimeProtocolClient(worker_addr)
-    worker = Worker(worker_application, runtime_client)
+    worker = PythonRuntime(worker_application, runtime_client)
     try:
         worker.run_forever()
     except KeyboardInterrupt:

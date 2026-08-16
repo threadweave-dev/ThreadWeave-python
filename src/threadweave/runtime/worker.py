@@ -39,7 +39,7 @@ class RuntimeClient(Protocol):
     def close(self) -> None: ...
 
 
-class Worker:
+class PythonRuntime:
     """Execute one assigned synchronous task at a time in this process."""
 
     def __init__(

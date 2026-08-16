@@ -128,7 +128,7 @@ class RuntimeProtocolClient(BaseProtocolClient):
         except grpc.RpcError as error:
             raise_rpc_error(error, "ReportExecution")
         if not response.accepted:
-            raise ProtocolClientError("Core rejected the execution report")
+            raise ProtocolClientError("Worker rejected the execution report")
 
     def _require_stub(self) -> Any:
         if self._stub is None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Protocol
 
 from threadweave_protocols.common.v1 import errors_pb2
@@ -9,6 +10,8 @@ from threadweave_protocols.runtime.v1 import worker_pb2
 
 from threadweave._internal.app import BaseThreadWeave
 from threadweave.protocol.runtime_client import RuntimeProtocolClient
+
+logger = logging.getLogger(__name__)
 
 
 class RuntimeClient(Protocol):
@@ -54,14 +57,20 @@ class PythonRuntime:
             while True:
                 assignment = self.client.acquire_execution()
                 if assignment is not None:
+                    logger.info(
+                        "Acquired execution %s for %s",
+                        assignment.execution_id,
+                        self._task_id(assignment),
+                    )
                     self.execute(assignment)
         finally:
             self.client.close()
 
     def execute(self, assignment: worker_pb2.AssignExecutionRequest) -> None:
         self.client.start_execution(assignment)
+        task_id = self._task_id(assignment)
         try:
-            task = self.application.get_task(self._task_id(assignment))
+            task = self.application.get_task(task_id)
             if assignment.serialization_format != "json":
                 raise ValueError(
                     "unsupported argument serialization format "
@@ -76,17 +85,29 @@ class PythonRuntime:
                 raise ValueError(
                     "JSON arguments require list 'args' and object 'kwargs'"
                 )
+            logger.info("Starting task %s", task_id)
             payload = json.dumps(task(*args, **kwargs), separators=(",", ":")).encode()
         except Exception as error:
+            logger.error(
+                "Task %s failed: %s: %s",
+                task_id,
+                type(error).__name__,
+                error,
+            )
             self.client.fail_execution(
                 assignment,
                 errors_pb2.Error(code=type(error).__name__, message=str(error)),
             )
+            logger.info(
+                "Execution %s failure reported to Worker", assignment.execution_id
+            )
             return
+        logger.info("Task %s succeeded", task_id)
         self.client.complete_execution(
             assignment,
             results_pb2.JobResult(payload=payload, serialization_format="json"),
         )
+        logger.info("Execution %s result reported to Worker", assignment.execution_id)
 
     def _task_id(self, assignment: worker_pb2.AssignExecutionRequest) -> str:
         if not assignment.HasField("task"):

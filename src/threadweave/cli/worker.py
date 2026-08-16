@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -57,11 +58,14 @@ def run(
     ] = "127.0.0.1:50052",
 ) -> None:
     """Load an application and execute tasks assigned by a Rust Worker."""
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     worker_application = load_application(application)
     typer.echo(f"Loaded {worker_application.qualified_name}")
     runtime_client = RuntimeProtocolClient(worker_addr)
     worker = PythonRuntime(worker_application, runtime_client)
     try:
+        runtime_client.connect()
+        logging.getLogger(__name__).info("Connected to Rust Worker at %s", worker_addr)
         worker.run_forever()
     except KeyboardInterrupt:
         typer.echo("Worker stopped")

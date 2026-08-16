@@ -30,7 +30,9 @@ def test_load_application_imports_module_from_working_directory(
 def test_worker_address_is_passed_to_runtime_client(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level("INFO")
     application_module = tmp_path / "example_application.py"
     application_module.write_text(
         "from threadweave import ThreadWeave\n"
@@ -42,6 +44,9 @@ def test_worker_address_is_passed_to_runtime_client(
     class FakeRuntimeClient:
         def __init__(self, endpoint: str) -> None:
             endpoints.append(endpoint)
+
+        def connect(self) -> None:
+            pass
 
     class FakePythonRuntime:
         def __init__(self, application: object, client: object) -> None:
@@ -64,3 +69,4 @@ def test_worker_address_is_passed_to_runtime_client(
 
     assert result.exit_code == 0
     assert endpoints == ["127.0.0.1:50052"]
+    assert "Connected to Rust Worker at 127.0.0.1:50052" in caplog.text

@@ -29,8 +29,30 @@ class RecordingClient:
     async def execution_started(self, work: Any) -> None:
         self.events_sent.append(("started", work))
 
-    async def execution_metrics(self, work: Any, **metrics: Any) -> None:
-        self.events_sent.append(("metrics", metrics))
+    async def execution_metrics(
+        self,
+        work: Any,
+        *,
+        elapsed_ms: int | None = None,
+        deserialization_ms: int | None = None,
+        execution_ms: int | None = None,
+        serialization_ms: int | None = None,
+        progress: float | None = None,
+        custom_metrics: dict[str, float] | None = None,
+    ) -> None:
+        self.events_sent.append(
+            (
+                "metrics",
+                {
+                    "elapsed_ms": elapsed_ms,
+                    "deserialization_ms": deserialization_ms,
+                    "execution_ms": execution_ms,
+                    "serialization_ms": serialization_ms,
+                    "progress": progress,
+                    "custom_metrics": custom_metrics,
+                },
+            )
+        )
 
     async def execution_completed(self, work: Any, result: Any) -> None:
         self.events_sent.append(("completed", result))

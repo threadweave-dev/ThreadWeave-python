@@ -5,10 +5,11 @@ import importlib
 import logging
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
+from threadweave._internal.app import BaseThreadWeave
 from threadweave.app import ThreadWeave
 from threadweave.asyncio.app import ThreadWeave as AsyncThreadWeave
 from threadweave.protocol.runtime_client import RuntimeProtocolClient
@@ -20,7 +21,7 @@ app = typer.Typer(
 )
 
 
-def load_application(import_string: str) -> ThreadWeave:
+def load_application(import_string: str) -> BaseThreadWeave[Any]:
     """Load a ThreadWeave application from ``module:attribute``."""
     module_name, separator, attribute_name = import_string.partition(":")
     if not separator or not module_name or not attribute_name:

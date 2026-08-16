@@ -49,14 +49,14 @@ class RuntimeProtocolClient(BaseProtocolClient):
             ) from error
         self._channel = channel
         stub = runtime_pb2_grpc.RuntimeServiceStub(channel)  # type: ignore[no-untyped-call]
-        self._call = stub.RuntimeSession()  # type: ignore[attr-defined]
+        self._call = stub.RuntimeSession()
         self._writer_task = asyncio.create_task(self._writer(), name="runtime-events")
         self._heartbeat_task = asyncio.create_task(
             self._heartbeats(), name="runtime-heartbeats"
         )
         await self._send(
-            worker_pb2.RuntimeEvent(  # type: ignore[attr-defined]
-                ready=worker_pb2.RuntimeReady(  # type: ignore[attr-defined]
+            worker_pb2.RuntimeEvent(
+                ready=worker_pb2.RuntimeReady(
                     runtime_id=self.runtime_id
                 )
             )
@@ -76,7 +76,7 @@ class RuntimeProtocolClient(BaseProtocolClient):
         await self._send_event(
             assignment,
             "execution_started",
-            worker_pb2.ExecutionStarted,  # type: ignore[attr-defined]
+            worker_pb2.ExecutionStarted,
             observed_at=_now(),
         )
 
@@ -86,7 +86,7 @@ class RuntimeProtocolClient(BaseProtocolClient):
         await self._send_event(
             assignment,
             "execution_progress",
-            worker_pb2.ExecutionProgress,  # type: ignore[attr-defined]
+            worker_pb2.ExecutionProgress,
             progress=progress,
             observed_at=_now(),
         )
@@ -115,7 +115,7 @@ class RuntimeProtocolClient(BaseProtocolClient):
         await self._send_event(
             assignment,
             "execution_metrics",
-            worker_pb2.ExecutionMetrics,  # type: ignore[attr-defined]
+            worker_pb2.ExecutionMetrics,
             **values,
         )
 
@@ -127,7 +127,7 @@ class RuntimeProtocolClient(BaseProtocolClient):
         await self._send_event(
             assignment,
             "execution_completed",
-            worker_pb2.ExecutionCompleted,  # type: ignore[attr-defined]
+            worker_pb2.ExecutionCompleted,
             result=result,
             observed_at=_now(),
         )
@@ -141,7 +141,7 @@ class RuntimeProtocolClient(BaseProtocolClient):
         await self._send_event(
             assignment,
             "execution_failed",
-            worker_pb2.ExecutionFailed,  # type: ignore[attr-defined]
+            worker_pb2.ExecutionFailed,
             failure=failure,
             observed_at=_now(),
         )
@@ -163,7 +163,7 @@ class RuntimeProtocolClient(BaseProtocolClient):
             **values,
         )
         await self._send(
-            worker_pb2.RuntimeEvent(**{field: payload})  # type: ignore[attr-defined]
+            worker_pb2.RuntimeEvent(**{field: payload})
         )
 
     async def _send(self, event: Any) -> None:
@@ -183,7 +183,7 @@ class RuntimeProtocolClient(BaseProtocolClient):
                 await asyncio.sleep(10)
                 sequence += 1
                 await self._send(
-                    worker_pb2.RuntimeEvent(  # type: ignore[attr-defined]
+                    worker_pb2.RuntimeEvent(
                         heartbeat=heartbeat_pb2.RuntimeHeartbeat(
                             runtime_id=self.runtime_id,
                             sequence_number=sequence,

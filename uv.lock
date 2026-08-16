@@ -1032,43 +1032,43 @@ wheels = [
 
 [[package]]
 name = "threadweave-protocols-grpc-python"
-version = "1.83.0.1.20260815093337+cddbe25352ca"
+version = "1.83.0.1.20260816131649+26be50c5c701"
 source = { registry = "https://buf.build/gen/python" }
 dependencies = [
     { name = "grpcio" },
     { name = "threadweave-protocols-protocolbuffers-python" },
 ]
 wheels = [
-    { url = "https://buf.build/gen/python/threadweave-protocols-grpc-python/threadweave_protocols_grpc_python-1.83.0.1.20260815093337+cddbe25352ca-py3-none-any.whl", upload-time = "2026-08-15T09:33:37Z" },
+    { url = "https://buf.build/gen/python/threadweave-protocols-grpc-python/threadweave_protocols_grpc_python-1.83.0.1.20260816131649+26be50c5c701-py3-none-any.whl", upload-time = "2026-08-16T13:16:49Z" },
 ]
 
 [[package]]
 name = "threadweave-protocols-protocolbuffers-pyi"
-version = "35.1.0.1.20260815093337+cddbe25352ca"
+version = "35.1.0.1.20260816131649+26be50c5c701"
 source = { registry = "https://buf.build/gen/python" }
 dependencies = [
     { name = "protobuf" },
     { name = "types-protobuf" },
 ]
 wheels = [
-    { url = "https://buf.build/gen/python/threadweave-protocols-protocolbuffers-pyi/threadweave_protocols_protocolbuffers_pyi-35.1.0.1.20260815093337+cddbe25352ca-py3-none-any.whl", upload-time = "2026-08-15T09:33:37Z" },
+    { url = "https://buf.build/gen/python/threadweave-protocols-protocolbuffers-pyi/threadweave_protocols_protocolbuffers_pyi-35.1.0.1.20260816131649+26be50c5c701-py3-none-any.whl", upload-time = "2026-08-16T13:16:49Z" },
 ]
 
 [[package]]
 name = "threadweave-protocols-protocolbuffers-python"
-version = "35.1.0.1.20260815093337+cddbe25352ca"
+version = "35.1.0.1.20260816131649+26be50c5c701"
 source = { registry = "https://buf.build/gen/python" }
 dependencies = [
     { name = "protobuf" },
     { name = "threadweave-protocols-protocolbuffers-pyi" },
 ]
 wheels = [
-    { url = "https://buf.build/gen/python/threadweave-protocols-protocolbuffers-python/threadweave_protocols_protocolbuffers_python-35.1.0.1.20260815093337+cddbe25352ca-py3-none-any.whl", upload-time = "2026-08-15T09:33:37Z" },
+    { url = "https://buf.build/gen/python/threadweave-protocols-protocolbuffers-python/threadweave_protocols_protocolbuffers_python-35.1.0.1.20260816131649+26be50c5c701-py3-none-any.whl", upload-time = "2026-08-16T13:16:49Z" },
 ]
 
 [[package]]
 name = "threadweave-python"
-version = "0.1.11"
+version = "0.1.12"
 source = { editable = "." }
 dependencies = [
     { name = "threadweave-protocols-grpc-python" },

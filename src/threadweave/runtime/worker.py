@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import time
@@ -114,7 +115,10 @@ class PythonRuntime:
             deserialization_ms = _milliseconds(deserialize_started)
 
             execution_started = time.perf_counter()
-            value = await asyncio.to_thread(task, *args, **kwargs)
+            if inspect.iscoroutinefunction(task.function):
+                value = await task(*args, **kwargs)
+            else:
+                value = await asyncio.to_thread(task, *args, **kwargs)
             execution_ms = _milliseconds(execution_started)
 
             serialization_started = time.perf_counter()

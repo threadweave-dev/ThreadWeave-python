@@ -10,6 +10,7 @@ from threadweave_protocols.execution.v1 import jobs_pb2
 from threadweave_protocols.runtime.v1 import worker_pb2
 
 from threadweave import ThreadWeave
+from threadweave.asyncio import ThreadWeave as AsyncThreadWeave
 from threadweave.runtime.worker import PythonRuntime
 
 
@@ -95,6 +96,39 @@ async def test_task_failure_is_reported() -> None:
 @pytest.mark.asyncio
 async def test_sync_task_does_not_block_event_loop() -> None:
     app = ThreadWeave("example")
+
+    @app.task
+    def slow(a: int, b: int) -> int:
+        time.sleep(0.05)
+        return a + b
+
+    client = RecordingClient()
+    execution = asyncio.create_task(
+        PythonRuntime(app, client).execute(assignment("slow"))
+    )
+    await asyncio.sleep(0.005)
+    assert not execution.done()
+    await execution
+
+
+@pytest.mark.asyncio
+async def test_async_api_executes_sync_task() -> None:
+    app = AsyncThreadWeave("example")
+
+    @app.task
+    def add(a: int, b: int) -> int:
+        return a + b
+
+    client = RecordingClient()
+    await PythonRuntime(app, client).execute(assignment())
+
+    assert client.events_sent[-1][0] == "completed"
+    assert client.events_sent[-1][1].payload == b"42"
+
+
+@pytest.mark.asyncio
+async def test_async_api_sync_task_does_not_block_event_loop() -> None:
+    app = AsyncThreadWeave("example")
 
     @app.task
     def slow(a: int, b: int) -> int:

@@ -1,12 +1,14 @@
 import asyncio
+import time
 
-from threadweave import ThreadWeave
+from threadweave.asyncio import ThreadWeave
 
 tw = ThreadWeave(name="example", grpc_address="localhost:50051")
 
 
 @tw.task
 def foo():
+    time.sleep(2)
     return "bar"
 
 
@@ -16,9 +18,13 @@ async def async_foo():
     return "bar"
 
 
-if __name__ == "__main__":
-    tw.client.connect()
-    job = async_foo.submit()
+async def main():
+    await tw.client.connect()
+    job = await foo.submit()
     print(f"Job {job}")
-    result = job.result()
+    result = await job.result()
     print(f"Result {result}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 
 from threadweave.app import ThreadWeave
+from threadweave.asyncio.app import ThreadWeave as AsyncThreadWeave
 from threadweave.protocol.runtime_client import RuntimeProtocolClient
 from threadweave.runtime.worker import PythonRuntime
 
@@ -37,7 +38,9 @@ def load_application(import_string: str) -> ThreadWeave:
             f"could not load application {import_string!r}: {error}"
         ) from error
 
-    if not isinstance(application, ThreadWeave):
+    if not isinstance(application, ThreadWeave) and not isinstance(
+        application, AsyncThreadWeave
+    ):
         raise typer.BadParameter(
             f"{import_string!r} does not refer to a ThreadWeave application"
         )

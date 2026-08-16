@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import inspect
 from collections.abc import Awaitable
 from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar, cast
 
@@ -42,8 +44,13 @@ class Task(BaseTask[P, R], Generic[P, R]):
 
         This does not submit a Job to the ThreadWeave Core.
         """
-        result = cast(Awaitable[R], self._function(*args, **kwargs))
-        return await result
+        if inspect.iscoroutinefunction(self._function):
+            result = cast(Awaitable[R], self._function(*args, **kwargs))
+            return await result
+
+        # The asyncio API also accepts ordinary functions. Run them in a worker
+        # thread so calling a locally registered task cannot block the event loop.
+        return await asyncio.to_thread(self._function, *args, **kwargs)
 
     async def submit(
         self,

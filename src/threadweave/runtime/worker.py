@@ -115,7 +115,7 @@ class PythonRuntime:
             deserialization_ms = _milliseconds(deserialize_started)
 
             execution_started = time.perf_counter()
-            if inspect.iscoroutinefunction(task.function):
+            if inspect.iscoroutinefunction(task.__call__):
                 value = await task(*args, **kwargs)
             else:
                 value = await asyncio.to_thread(task, *args, **kwargs)
